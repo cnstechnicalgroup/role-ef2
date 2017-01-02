@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# Check Instance tags
+INSTANCE_ID=$(wget -qO- http://instance-data/latest/meta-data/instance-id);
+REGION=$(wget -qO- http://instance-data/latest/meta-data/placement/availability-zone | sed 's/.$//');
+MODE=$(aws ec2 describe-tags \
+           --filters "Name=resource-id,Values=$INSTANCE_ID" "Name=key,Values=Mode" \
+           --region "$REGION" --output=text | cut -f5);
+
+SERVER_STAGE={{ efs_server_stage }};
+SERVER_PROD={{ efs_server_prod }};
+MOUNT_POINT=/opt/efs;
+MOUNT_OPTIONS="nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2";
+
+function net_umount {
+  umount -l -f $1 &>/dev/null
+}
+
+function net_mount {
+  mountpoint -q $2 || mount -t nfs4 -o $MOUNT_OPTIONS ${1}:/ $2
+}
+
+
+if [[ "$MODE" == 'prod' ]]; then
+  SERVER=$SERVER_PROD;
+else
+  SERVER=$SERVER_STAGE;
+fi;
+
+# Check if server already tested
+if [[ "${server_ok[@]}" =~ "${SERVER}" ]]; then
+  # The server is up, make sure the share are mounted
+  net_mount $SERVER $MOUNT_POINT
+elif [[ "${server_notok[@]}" =~ "${SERVER}" ]]; then
+  # The server could not be reached, unmount the share
+  net_umount $MOUNT_POINT
+else
+  # Check if the server is reachable
+  timeout 1 bash -c ": < /dev/tcp/${SERVER}/2049"
+
+  if [ $? -ne 0 ]; then
+    {% raw %}
+    server_notok[${#Unix[@]}]=$SERVER
+    {% endraw %}
+    # The server could not be reached, unmount the share
+    net_umount $MOUNT_POINT
+  else
+    {% raw %}
+    server_ok[${#Unix[@]}]=$SERVER
+    {% endraw %}
+    # The server is up, make sure the share are mounted
+    net_mount $SERVER $MOUNT_POINT
+  fi
+fi

@@ -1,0 +1,29 @@
+---
+- name: Install required packages
+  apt: pkg={{item}} state=latest update_cache=true
+  with_items:
+    - nfs-common
+
+- name: Generate auto_share script
+  template:
+    src: usr-local-bin-auto_share.j2
+    dest: /usr/local/bin/auto_share
+    mode: 0755
+  become: yes
+
+- name: Create crontab entry to run auto_share at reboot
+  cron:
+    name: "Run auto_share at reboot"
+    special_time: reboot
+    job: "/usr/local/bin/auto_share"
+  become: yes
+
+- name: Create crontab entry to run auto_share every minute
+  cron:
+    name: "Run auto_share every minute"
+    job: "/usr/local/bin/auto_share"
+  become: yes
+
+- name: Initial auto_share run
+  command: /usr/local/bin/auto_share
+  become: yes

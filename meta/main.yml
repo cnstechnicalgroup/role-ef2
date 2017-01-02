@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  author: cnstechnicalgroup
+  description: Ansible role to create EFS / NFS auto_share script, mount shares based on environment, and cron job to remount share if disconnected.
+  company: CNS Technical Group, Inc.
+  license: GPL2
+  min_ansible_version: 1.8
+  categories:
+  - system, cloud, network, storage
+dependencies: []
