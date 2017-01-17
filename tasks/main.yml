@@ -4,6 +4,12 @@
   with_items:
     - nfs-common
 
+- name: Ensure /opt/efs exists
+  file:
+    path: "/opt/efs"
+    state: directory
+  become: yes
+
 - name: Generate auto_share script
   template:
     src: usr-local-bin-auto_share.j2
